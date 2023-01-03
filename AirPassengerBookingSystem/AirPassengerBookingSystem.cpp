@@ -49,12 +49,12 @@ Status initWaitQueue(WaitLinkQueue& q) {
  * @param identification 身份证号 
  * @return 候补链队列
 */
-WaitLinkQueue enWaitQueue(WaitLinkQueue& q, char name[], int amount, char identification[]) {
+WaitLinkQueue enWaitQueue(WaitLinkQueue& q, char name[], int preBookingVolume, char IDNumber[]) {
     PWait newPassenger;
     newPassenger = (PWait)malloc(sizeof(WaitQNode));
     strcpy(newPassenger->name, name);
-    strcpy(newPassenger->identification, identification);
-    newPassenger->preTickets = amount;
+    strcpy(newPassenger->IDNumber, IDNumber);
+    newPassenger->preBookingVolume = preBookingVolume;
     newPassenger->next = NULL;
 
     q.rear->next = newPassenger;
@@ -64,26 +64,27 @@ WaitLinkQueue enWaitQueue(WaitLinkQueue& q, char name[], int amount, char identi
 }
 
 /**
- * 候补链队列出队
- * @param q 候补链队列
- * @param NameAndNumAndID 姓名、购票量、身份证的封装结构体
- * @return 出队结果
+ * 候补队列出队
+ * @param q
+ * @param waitName 姓名
+ * @param waitIDNumber 身份证号
+ * @param preBookingVolume 候补预定票量
+ * @return 是否出队成功
 */
-Status deWaitQueue(WaitLinkQueue& q, NameAndNumAndID& NameAndNumAndID) {
+Status deWaitQueue(WaitLinkQueue& q, char waitName[], char waitIDNumber[], int& preBookingVolume) {
     WaitQNode* p = q.front->next;
-    //判空
+    
     if (q.front == q.rear) return ERROR;
-    //出队
+    
     q.front->next = p->next;
-    //出队到空时，rear = front
+    
     if (NULL == q.front->next) {
         q.rear = q.front;
     }
 
-    //返回出队元素的关键信息，包括候补客户的姓名和订票量
-    NameAndNumAndID.num = p->preTickets;
-    strcpy(NameAndNumAndID.name, p->name);
-    strcpy(NameAndNumAndID.identification, p->identification);
+    preBookingVolume = p->preBookingVolume;
+    strcpy(waitName, p->name);
+    strcpy(waitIDNumber, p->IDNumber);
     free(p);
 
     return OK;
@@ -313,7 +314,7 @@ void adminShowCustomerInfo() {
     if (NULL != p) {
         printf("客户姓名   订票数额   舱位等级（1经济舱，2商务舱）    身份证号码\n");
         while (p) {
-            printf("%s\t\t%d\t\t%d\t\t\t%s\n", p->name, p->clientTickets, p->rank, p->identification);
+            printf("%s\t\t%d\t\t%d\t\t\t%s\n", p->name, p->bookingvVolume, p->rank, p->IDNumber);
             p = p->next;
         }
     }
@@ -469,13 +470,13 @@ void userRecommendBookTicket(Flight* flight) {
  * @param rank 订票的等级
  * @return  乘客链表头指针
  */
-CustomerLinkList insertCustomerLinklist(CustomerLinkList& head, int amount, char name[], char identification[], int rank) {
+CustomerLinkList insertCustomerLinklist(CustomerLinkList& head, char name[], char IDNumber[], int bookingVolume, int rank) {
     CustomerLinkList newCustomer = (CustomerNode*)malloc(sizeof(CustomerNode));
     if (NULL == newCustomer) return NULL;
 
     strcpy(newCustomer->name, name);
-    strcpy(newCustomer->identification, identification);
-    newCustomer->clientTickets = amount;
+    strcpy(newCustomer->IDNumber, IDNumber);
+    newCustomer->bookingvVolume = bookingVolume;
     newCustomer->rank = rank;
 
     newCustomer->next = head->next;
@@ -507,8 +508,8 @@ void userBookTicket() {
     printf("请正确输入您的票的舱位等级（1代表经济舱，2或其他代表商务舱）:");
     int rank = 2;
     int tickets = 0;
-    char name[10];
-    char identification[20];
+    char name[20];
+    char IDNumber[19];
     scanf("%d", &rank);
     if (rank == 1)
         tickets = flight->leftEconomicTicket;
@@ -519,10 +520,10 @@ void userBookTicket() {
         printf("请输入您的姓名:");
         scanf("%s", name);
         printf("请输入您的身份证号码:");
-        scanf("%s", identification);
+        scanf("%s", IDNumber);
         CustomerLinkList head = flight->cusLinkList;
         //订票成功，插入成员名单链表
-        insertCustomerLinklist(head, amount, name, identification, rank);
+        insertCustomerLinklist(head, name, IDNumber, amount, rank);
         for (int i = 0; i < amount; i++)
             printf("%s 的座位号是: %d\n", name, flight->totalTickets - flight->left + i + 1);
         flight->left -= amount;
@@ -546,12 +547,12 @@ void userBookTicket() {
             printf("\n请输入您的姓名（排队订票客户）:");
             scanf("%s", name);
             printf("\n请输入您的身份证（排队订票客户）:");
-            scanf("%s", identification);
+            scanf("%s", IDNumber);
             if (rank == 1) {//进入经济舱排队队列
-                flight->economicWaitQueue = enWaitQueue(flight->economicWaitQueue, name, amount, identification);
+                flight->economicWaitQueue = enWaitQueue(flight->economicWaitQueue, name, amount, IDNumber);
             }
             else {//进入商务舱排队队列
-                flight->businessWaitQueue = enWaitQueue(flight->businessWaitQueue, name, amount, identification);
+                flight->businessWaitQueue = enWaitQueue(flight->businessWaitQueue, name, amount, IDNumber);
             }
             printf("\n排队成功!\n");
         }
@@ -590,9 +591,9 @@ void userRefundTicket() {
     //p1为遍历指针，p2为辅助指针，指向p1的前驱
     CustomerNode* p1, * p2, * head;
     //客户姓名
-    char name[10];
+    char name[20];
     //客户身份证
-    char identification[20];
+    char IDNumber[19];
     //head为该航班的的乘员名单域的头指针
     head = flight->cusLinkList;
     //带头结点的指针，head->next 开始遍历
@@ -600,11 +601,11 @@ void userRefundTicket() {
     printf("请输入你的姓名: ");
     scanf("%s", name);
     printf("请输入你的身份证号码: ");
-    scanf("%s", identification);
+    scanf("%s", IDNumber);
     //根据客户姓名搜索客户是否订票
     p2 = head;
     while (NULL != p1) {
-        if ((strcmp(name, p1->name) == 0) && (strcmp(identification, p1->identification) == 0)) break;
+        if ((strcmp(name, p1->name) == 0) && (strcmp(IDNumber, p1->IDNumber) == 0)) break;
         p2 = p1;
         p1 = p1->next;
     }
@@ -618,12 +619,12 @@ void userRefundTicket() {
         rank = p1->rank;
         p2->next = p1->next;
         //加回该航班的剩余票
-        flight->left += p1->clientTickets;
+        flight->left += p1->bookingvVolume;
         if (rank == 1) {
-            flight->leftEconomicTicket += p1->clientTickets;
+            flight->leftEconomicTicket += p1->bookingvVolume;
         }
         else {
-            flight->leftBusinessTicket += p1->clientTickets;
+            flight->leftBusinessTicket += p1->bookingvVolume;
         }
         printf("%s  成功退票！\n", p1->name);
         free(p1);
@@ -631,52 +632,53 @@ void userRefundTicket() {
 
     WaitLinkQueue queue1 = flight->economicWaitQueue;
     WaitLinkQueue queue2 = flight->businessWaitQueue;
-    NameAndNumAndID nameAndNumAndID = {};
 
+    char waitName[20] = "";
+    char waitIDNumber[19] = "";
+    int preBookingVolume = 0;
     //处理候票
     if (rank == 1) { 
         //经济舱
-        for (; queue1.front->next != NULL && queue1.front->next->preTickets <= flight->leftEconomicTicket;) {
+        for (; queue1.front->next != NULL && queue1.front->next->preBookingVolume <= flight->leftEconomicTicket;) {
             //候补客户队列出队
-            deWaitQueue(flight->economicWaitQueue, nameAndNumAndID);
+            deWaitQueue(flight->economicWaitQueue, waitName, waitIDNumber, preBookingVolume);
             int y;
-            printf("有 经济舱票 剩余 , 尊敬的%s ：\n", nameAndNumAndID.name);
+            printf("有 经济舱票 剩余 , 尊敬的%s ：\n", waitName);
             printf("是否确认订票（1确认订票， 其他数字拒绝订票）\n");
             scanf("%d", &y);
 
             if (y == 1) {
                 //排队订票成功
-                for (int i = 0; i < nameAndNumAndID.num; i++)
-                    printf("排队订票成功  %s 的座位号是:%d\n", nameAndNumAndID.name, (flight->left) - i);
+                for (int i = 0; i < preBookingVolume; i++)
+                    printf("排队订票成功  %s 的座位号是:%d\n", waitName, (flight->left) - i);
                 //剩余票减少
-                flight->left -= nameAndNumAndID.num;
-                flight->leftEconomicTicket -= nameAndNumAndID.num;
+                flight->left -= preBookingVolume;
+                flight->leftEconomicTicket -= preBookingVolume;
                 //乘员名单链表插入排队订票成功的客户
-                flight->cusLinkList = insertCustomerLinklist(flight->cusLinkList, nameAndNumAndID.num, nameAndNumAndID.name,
-                    nameAndNumAndID.identification, rank);
+                flight->cusLinkList = insertCustomerLinklist(flight->cusLinkList, waitName, waitIDNumber, preBookingVolume, rank);
             }
         }
     }
     else {
         //商务舱
-        for (; queue2.front->next != NULL && queue2.front->next->preTickets <= flight->leftBusinessTicket;) {
+        for (; queue2.front->next != NULL && queue2.front->next->preBookingVolume <= flight->leftBusinessTicket;) {
             //候补客户队列出队
-            deWaitQueue(flight->businessWaitQueue, nameAndNumAndID);
+            deWaitQueue(flight->businessWaitQueue, waitName, waitIDNumber, preBookingVolume);
             int y;
-            printf("有 商务舱票 剩余 , 尊敬的%s ：\n", nameAndNumAndID.name);
+            printf("有 商务舱票 剩余 , 尊敬的%s ：\n", waitName);
             printf("是否确认订票（1确认订票， 其他数字拒绝订票\n");
             scanf("%d", &y);
 
             if (y == 1) {
                 //排队订票成功
-                for (int i = 0; i < nameAndNumAndID.num; i++)
-                    printf("排队订票成功  %s 的座位号是:%d\n", nameAndNumAndID.name, (flight->left) - i);
+                for (int i = 0; i < preBookingVolume; i++)
+                    printf("排队订票成功  %s 的座位号是:%d\n", waitName, (flight->left) - i);
                 //剩余票减少
-                flight->left -= nameAndNumAndID.num;
-                flight->leftBusinessTicket -= nameAndNumAndID.num;
+                flight->left -= preBookingVolume;
+                flight->leftBusinessTicket -= preBookingVolume;
                 //乘员名单链表插入排队订票成功的客户
-                flight->cusLinkList = insertCustomerLinklist(flight->cusLinkList, nameAndNumAndID.num, nameAndNumAndID.name,
-                    nameAndNumAndID.identification, rank);
+                flight->cusLinkList = insertCustomerLinklist(flight->cusLinkList, waitName, waitIDNumber,
+                    preBookingVolume, rank);
             }
         }
     }
@@ -843,7 +845,7 @@ void menu() {
     case 3:
         //退出模块
         goodbye();
-        break;
+        return;
     default:
         menu();
     }
@@ -949,9 +951,7 @@ void administratorMenu() {
 }
 
 void run() {
-    //初始化pFlight，pFlight为全局变量。
     initFlight();
-    //菜单函数
     menu();
 }
 

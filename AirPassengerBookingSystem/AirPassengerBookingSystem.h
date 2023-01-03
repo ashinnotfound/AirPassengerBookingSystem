@@ -9,59 +9,50 @@
 #define OVERFLOW -1
 #define FALSE -1
 #define TRUE 1
-
 typedef int Status;
 
-//航班日期枚举
 enum Week {
     Mon = 1, Tues = 2, Wed = 3, Thur = 4, Fri = 5, Sat = 6, Sun = 7
 };
 
 //乘客节点
 typedef struct CustomerNode {
-    char name[10];//客户姓名
-    int clientTickets;//客户订票量
-    char identification[18];//客户身份证号码
-    int rank;//舱位等级
+    char name[20];  //姓名
+    char IDNumber[19];  //身份证号码
+    int bookingvVolume; //订票量
+    int rank;   //舱位等级
     CustomerNode* next;
 } CustomerNode, * CustomerLinkList;
 
 //候补队列中的节点
 typedef struct WaitPassenger {
-    char name[10];//姓名
-    char identification[18]; //身份证
-    int preTickets;//预定的票量
+    char name[20];  //姓名
+    char IDNumber[19];  //身份证号码
+    int preBookingVolume;   //预定票量
     struct WaitPassenger* next;
 } WaitQNode, * PWait;
 
 //候补队列
 typedef struct Queue {
-    PWait front;//等候替补客户名单域的头指针
-    PWait rear;//等候替补客户名单域的尾指针
+    PWait front;
+    PWait rear;
 } WaitLinkQueue;
-
-//封装乘客的 姓名 身份证号 订票量,用于候补客户出队时把关键字返回 
-typedef struct NameAndNumAndID {
-    char name[10];//姓名
-    char identification[18]; //身份证号码
-    int num;//订票量
-}NameAndNumAndID;
 
 //航班节点
 typedef struct Flight {
-    int ID;//航班ID（相当于主键）
-    char startPoint[20];//起点站名
-    char destination[20];//终点站名
-    char planeNum[20];//飞机号
-    char day[20];//飞行日期（星期几）
-    int totalTickets;//乘员定额(总票数)
-    int left;//总余票量
+    int ID; //航班ID
+    char startPoint[20];    //起点站名
+    char destination[20];   //终点站名
+    char planeNum[20];  //飞机号
+    char day[20];   //飞行日期（星期几）
+    int totalTickets;   //乘员定额(总票数)
+    int left;   //总余票量
     int leftEconomicTicket; //经济票剩余量
     int leftBusinessTicket; //商务票剩余量
     Flight* next;
-    CustomerLinkList cusLinkList;//乘员名单域，指向乘员名单链表的头指针
-    WaitLinkQueue economicWaitQueue;//经济舱候补，等候替补的客户名单域，指向一个队列
-    WaitLinkQueue businessWaitQueue;//商务舱候补，等候替补的客户名单域，指向一个队列
+    CustomerLinkList cusLinkList;   //乘员名单
+    WaitLinkQueue economicWaitQueue;    //经济舱候补
+    WaitLinkQueue businessWaitQueue;    //商务舱候补
 } Flight, FlightNode, * PFlight;
 
 /**
@@ -89,12 +80,14 @@ Status initWaitQueue(WaitLinkQueue& q);
 WaitLinkQueue enWaitQueue(WaitLinkQueue& q, char name[], int amount, char identification[]);
 
 /**
- * 候补链队列出队
- * @param q 候补链队列
- * @param NameAndNumAndID 姓名、购票量、身份证的封装结构体
- * @return 出队结果
+ * 候补队列出队
+ * @param q 
+ * @param waitName 姓名
+ * @param waitIDNumber 身份证号
+ * @param preBookingVolume 候补预定票量 
+ * @return 是否出队成功
 */
-Status deWaitQueue(WaitLinkQueue& q, NameAndNumAndID& NameAndNumAndID);
+Status deWaitQueue(WaitLinkQueue& q, char waitName[], char waitIDNumber[], int& preBookingVolume);
 
 /**
  * 初始化航班链表
@@ -180,7 +173,7 @@ void userRecommendBookTicket(Flight* flight);
  * @param rank 订票的等级
  * @return  乘客链表头指针
  */
-CustomerLinkList insertCustomerLinklist(CustomerLinkList& head, int amount, char name[], char identification[], int rank);
+CustomerLinkList insertCustomerLinklist(CustomerLinkList& head, char name[], char IDNumber[], int bookingVolume, int rank);
 
 /** 
  * 用户
